@@ -4,7 +4,7 @@
 
 ## Description
 
-* **Year**: 2021
+* **Year**: 2022
 * **Organisation**: [TensorFlow](https://www.tensorflow.org/)
 * **Project Title**: Publish fine-tuned CoAtNet in TensorFlow Hub
 TensorFlow Hub is the main TensorFlow model repository with thousands of pre-trained models with documentation, sample code and readily available to use or fine-tune. The idea behind the project is to develop new State-of-the-Art models like CoAtNet and publish the pre-trained models on TensorFlow Hub using the ImageNet1k dataset. CoAtNet is considered the State-of-the-Art model for Image Classification.
