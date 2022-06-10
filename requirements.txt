@@ -1,0 +1,5 @@
+black
+matplotlib
+ml-collections==0.1.0
+pytest==6.2.5
+tensorflow
