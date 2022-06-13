@@ -7,7 +7,7 @@
 * **Year**: 2022
 * **Organisation**: [TensorFlow](https://www.tensorflow.org/)
 * **Project Title**: Publish fine-tuned CoAtNet in TensorFlow Hub
-TensorFlow Hub is the main TensorFlow model repository with thousands of pre-trained models with documentation, sample code and readily available to use or fine-tune. The idea behind the project is to develop new State-of-the-Art models like CoAtNet and publish the pre-trained models on TensorFlow Hub using the ImageNet1k dataset. CoAtNet is considered the State-of-the-Art model for Image Classification.
+TensorFlow Hub is the main TensorFlow model repository with thousands of pre-trained models with documentation, sample code and readily available to use or fine-tune. The idea behind the project is to develop new State-of-the-Art models like CoAtNet and publish the pre-trained models on TensorFlow Hub using the ImageNet1k dataset. CoAtNet achieves 86.0% ImageNet top-1 accuracy; When pre-trained with 13M images from ImageNet-21K, our CoAtNet achieves 88.56% top-1 accuracy, matching ViT-huge pre-trained with 300M images from JFT-300M while using 23x less data; Notably, when we further scale up CoAtNet with JFT-3B, it achieves 90.88% top-1 accuracy on ImageNet.
 * **Mentors**: [Luis Gustavo Martins](https://twitter.com/gusthema) & [Sayak Paul](https://twitter.com/RisingSayak) 
 
 ## 🔗 Links
