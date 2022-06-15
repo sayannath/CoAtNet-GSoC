@@ -14,7 +14,7 @@ class CoAtNet(keras.models.Model):
 
     def get_training_model(self):
         """
-        Implements ConvNeXt family of models given a configuration.
+        Implements CoAtNet family of models given a configuration.
         References:
             (1) https://arxiv.org/pdf/2106.04803.pdf
         """
