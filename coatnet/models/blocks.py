@@ -33,12 +33,15 @@ class MbConv_Block(layers.Layer):
     MBConv Block - S1 Stage
 
     Args:
-        input_channel: number of input channel
-        output_channel: number of output channel
-        se_ratio: ratio of the squeeze excitation module
-        conv_shortcut: whether to downsample or not
-        expansion: expansion rate
-        dropout_rate: dropout rate
+        input_channel (int): number of input channel
+        output_channel (int): number of output channel
+        se_ratio (float): between 0 and 1, fraction to squeeze the input filters.
+        conv_shortcut (boolean): whether to downsample or not
+        expansion (int): expansion rate
+        dropout_rate (float): between 0 and 1, fraction of the input units to drop.
+
+    Returns:
+        output tensor for the block
     """
 
     def __init__(
@@ -141,12 +144,15 @@ class SE_Module(layers.Layer):
     Squeeze Excitation Layer
 
     Args:
-        num_filters: number of filters
-        ratio: se ratio
-        divisor: divisor
+        num_filters (int): number of filters
+        ratio (int): se ratio
+        divisor (int): divisor
         activation: activation function
         channel_format: "channel_last" or "channel_first"
-        use_bias: addition set of weight
+        use_bias (boolean): addition set of weight
+
+    Returns:
+        output tensor for the block.
     """
 
     def __init__(
