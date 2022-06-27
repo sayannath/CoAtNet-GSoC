@@ -1,6 +1,5 @@
 import tensorflow as tf
 import tensorflow_addons as tfa
-from tensorflow import keras
 from tensorflow.keras import layers
 
 
@@ -29,7 +28,19 @@ def conv_3x3(input_layer, num_filters: int = 64, downsample: bool = False):
     return act_1
 
 
-class MbConv_Block(keras.layers.Layer):
+class MbConv_Block(layers.Layer):
+    """
+    MBConv Block - S1 Stage
+
+    Args:
+        input_channel: number of input channel
+        output_channel: number of output channel
+        se_ratio: ratio of the squeeze excitation module
+        conv_shortcut: whether to downsample or not
+        expansion: expansion rate
+        dropout_rate: dropout rate
+    """
+
     def __init__(
         self,
         input_channel: int,
@@ -41,22 +52,22 @@ class MbConv_Block(keras.layers.Layer):
         dropout_rate: float,
         **kwargs
     ):
-        super(MbConv_Block, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
-        self.bn = keras.layers.BatchNormalization()
+        self.bn = layers.BatchNormalization()
         self.act = tfa.layers.GELU()
 
         if conv_shortcut:
             if strides > 1:
-                self.conv_shortcut_pool = keras.layers.AveragePooling2D(
+                self.conv_shortcut_pool = layers.AveragePooling2D(
                     pool_size=(strides, strides), padding="same"
                 )
-            self.conv_shortcut_layer = keras.layers.Conv2D(
+            self.conv_shortcut_layer = layers.Conv2D(
                 output_channel, kernel_size=1, strides=1, padding="same", use_bias=False
             )
 
         self.conv_1 = (
-            keras.layers.Conv2D(
+            layers.Conv2D(
                 filters=input_channel * expansion,
                 kernel_size=(1, 1),
                 strides=(1, 1),
@@ -64,31 +75,31 @@ class MbConv_Block(keras.layers.Layer):
                 use_bias=False,
             ),
         )
-        self.bn_1 = keras.layers.BatchNormalization()
+        self.bn_1 = layers.BatchNormalization()
         self.act_1 = tfa.layers.GELU()
         self.dconv_1 = (
-            keras.layers.DepthwiseConv2D(
+            layers.DepthwiseConv2D(
                 kernel_size=(3, 3),
                 strides=(strides, strides),
                 padding="same",
                 use_bias=False,
             ),
         )
-        self.bn_2 = keras.layers.BatchNormalization()
+        self.bn_2 = layers.BatchNormalization()
         self.act_2 = tfa.layers.GELU()
 
         self.se_module = SE_Module(
             input_channel * expansion, ratio=se_ratio / expansion, activation="gelu"
         )
 
-        self.conv_2 = keras.layers.Conv2D(
+        self.conv_2 = layers.Conv2D(
             filters=output_channel,
             kernel_size=(3, 3),
             strides=(1, 1),
             padding="same",
             use_bias=False,
         )
-        self.drop_1 = keras.layers.Dropout(rate=dropout_rate)
+        self.drop_1 = layers.Dropout(rate=dropout_rate)
 
     def __make_divisible(self, value, divisor, min_value=None):
         """Refer: https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet/mobilenet.py"""
@@ -121,11 +132,23 @@ class MbConv_Block(keras.layers.Layer):
         x = self.se_module(x)
         x = self.conv_2(x)
         x = self.drop_1(x)
-        x = keras.layers.Add()([x, shortcut])
+        x = layers.Add()([x, shortcut])
         return x
 
 
-class SE_Module(keras.layers.Layer):
+class SE_Module(layers.Layer):
+    """
+    Squeeze Excitation Layer
+
+    Args:
+        num_filters: number of filters
+        ratio: se ratio
+        divisor: divisor
+        activation: activation function
+        channel_format: "channel_last" or "channel_first"
+        use_bias: addition set of weight
+    """
+
     def __init__(
         self,
         num_filters: int,
@@ -136,7 +159,7 @@ class SE_Module(keras.layers.Layer):
         use_bias: bool = True,
         **kwargs
     ):
-        super(SE_Module, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.channel_axis = -1
         self.h_axis, self.w_axis = [1, 2]
 
@@ -145,21 +168,21 @@ class SE_Module(keras.layers.Layer):
             self.h_axis, self.w_axis = [2, 3]
 
         reduction = self.__make_divisible(num_filters * ratio, divisor)
-        self.conv_1 = keras.layers.Conv2D(
+        self.conv_1 = layers.Conv2D(
             reduction, kernel_size=1, strides=1, padding="same", use_bias=use_bias
         )
 
         self.act_1 = tfa.layers.GELU()
 
         if activation == "relu":
-            self.act_1 = keras.layers.ReLU()
+            self.act_1 = layers.ReLU()
 
-        self.conv_2 = keras.layers.Conv2D(
+        self.conv_2 = layers.Conv2D(
             num_filters, kernel_size=1, strides=1, padding="same", use_bias=use_bias
         )
 
-        self.act_2 = keras.layers.Activation("sigmoid")
-        self.multiply = keras.layers.Multiply()
+        self.act_2 = layers.Activation("sigmoid")
+        self.multiply = layers.Multiply()
 
     def __make_divisible(self, value, divisor, min_value=None):
         """Refer: https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet/mobilenet.py"""
