@@ -28,183 +28,88 @@ def conv_3x3(input_layer, num_filters: int = 64, downsample: bool = False):
     return act_1
 
 
-class MbConv_Block(layers.Layer):
+def mbconv_block(
+    input_layer,
+    input_channel: int,
+    output_channel: int,
+    strides: int = 1,
+    expansion_rate: int = 4,
+    se_ratio: float = 0.25,
+    dropout_rate: float = 0.1,
+):
     """
-    MBConv Block - S1 Stage
+    Mobile Inverted Block - Stage 2
+
+    Refer: https://github.com/keras-team/keras-applications/blob/master/keras_applications/efficientnet.py
 
     Args:
+        input_layer: input tensor
         input_channel (int): number of input channel
         output_channel (int): number of output channel
-        se_ratio (float): between 0 and 1, fraction to squeeze the input filters.
-        conv_shortcut (boolean): whether to downsample or not
+        strides (int): number of strides
         expansion (int): expansion rate
+        se_ratio (float): between 0 and 1, fraction to squeeze the input filters.
         dropout_rate (float): between 0 and 1, fraction of the input units to drop.
 
     Returns:
         output tensor for the block
     """
 
-    def __init__(
-        self,
-        input_channel: int,
-        output_channel: int,
-        se_ratio: float,
-        strides: int,
-        conv_shortcut: bool,
-        expansion: int,
-        dropout_rate: float,
-        **kwargs
-    ):
-        super().__init__(**kwargs)
+    conv_1 = layers.Conv2D(
+        filters=input_channel * expansion_rate,
+        kernel_size=(1, 1),
+        strides=(1, 1),
+        padding="same",
+        use_bias=False,
+    )(input_layer)
 
-        self.bn = layers.BatchNormalization()
-        self.act = tfa.layers.GELU()
+    bn_1 = layers.BatchNormalization()(conv_1)
+    act_1 = tf.nn.gelu(bn_1)
 
-        if conv_shortcut:
-            if strides > 1:
-                self.conv_shortcut_pool = layers.AveragePooling2D(
-                    pool_size=(strides, strides), padding="same"
-                )
-            self.conv_shortcut_layer = layers.Conv2D(
-                output_channel, kernel_size=1, strides=1, padding="same", use_bias=False
-            )
+    dconv_1 = layers.DepthwiseConv2D(
+        kernel_size=(3, 3),
+        strides=(strides, strides),
+        padding="same",
+        use_bias=False,
+    )(act_1)
+    bn_2 = layers.BatchNormalization()(dconv_1)
+    act_2 = tf.nn.gelu(bn_2)
 
-        self.conv_1 = (
-            layers.Conv2D(
-                filters=input_channel * expansion,
-                kernel_size=(1, 1),
-                strides=(1, 1),
-                padding="same",
-                use_bias=False,
-            ),
-        )
-        self.bn_1 = layers.BatchNormalization()
-        self.act_1 = tfa.layers.GELU()
-        self.dconv_1 = (
-            layers.DepthwiseConv2D(
-                kernel_size=(3, 3),
-                strides=(strides, strides),
-                padding="same",
-                use_bias=False,
-            ),
-        )
-        self.bn_2 = layers.BatchNormalization()
-        self.act_2 = tfa.layers.GELU()
+    # SE Module
+    filters_se = max(1, int(input_channel * se_ratio))
+    se = layers.GlobalAveragePooling2D()(act_2)
 
-        self.se_module = SE_Module(
-            input_channel * expansion, ratio=se_ratio / expansion, activation="gelu"
-        )
+    se = layers.Reshape((1, 1, input_channel * expansion_rate))(se)
 
-        self.conv_2 = layers.Conv2D(
-            filters=output_channel,
-            kernel_size=(3, 3),
-            strides=(1, 1),
-            padding="same",
-            use_bias=False,
-        )
-        self.drop_1 = layers.Dropout(rate=dropout_rate)
+    se = layers.Conv2D(
+        filters=filters_se,
+        kernel_size=(1, 1),
+        strides=(1, 1),
+        padding="same",
+        use_bias=False,
+    )(se)
 
-    def __make_divisible(self, value, divisor, min_value=None):
-        """Refer: https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet/mobilenet.py"""
-        if min_value is None:
-            min_value = divisor
-        new_value = max(min_value, int(value + divisor / 2) // divisor * divisor)
-        # Make sure that round down does not go down by more than 10%.
-        if new_value < 0.9 * value:
-            new_value += divisor
-        return new_value
+    act_3 = tf.nn.gelu(se)
 
-    def call(self, inputs):
-        x = self.bn(inputs)
-        x = self.act(x)
-        pre_act = x
+    se = layers.Conv2D(
+        filters=input_channel * expansion_rate,
+        kernel_size=(1, 1),
+        strides=(1, 1),
+        activation="sigmoid",
+        padding="same",
+        use_bias=False,
+    )(act_3)
 
-        if hasattr(self, "conv_shortcut_layer"):
-            if hasattr(self, "conv_shortcut_pool"):
-                pre_act = self.conv_shortcut_pool(pre_act)
-            shortcut = self.conv_shortcut_layer(pre_act)
-        else:
-            shortcut = inputs
+    mul = layers.multiply([act_2, se])
 
-        x = self.conv_1[0](x)
-        x = self.bn_1(x)
-        x = self.act_1(x)
-        x = self.dconv_1[0](x)
-        x = self.bn_2(x)
-        x = self.act_2(x)
-        x = self.se_module(x)
-        x = self.conv_2(x)
-        x = self.drop_1(x)
-        x = layers.Add()([x, shortcut])
-        return x
+    conv_2 = layers.Conv2D(
+        filters=output_channel,
+        kernel_size=(3, 3),
+        strides=(1, 1),
+        padding="same",
+        use_bias=False,
+    )(mul)
 
-
-class SE_Module(layers.Layer):
-    """
-    Squeeze Excitation Layer
-
-    Args:
-        num_filters (int): number of filters
-        ratio (int): se ratio
-        divisor (int): divisor
-        activation: activation function
-        channel_format: "channel_last" or "channel_first"
-        use_bias (boolean): addition set of weight
-
-    Returns:
-        output tensor for the block.
-    """
-
-    def __init__(
-        self,
-        num_filters: int,
-        ratio: int = 16,
-        divisor: int = 8,
-        activation="gelu",
-        channel_format="channels_last",
-        use_bias: bool = True,
-        **kwargs
-    ):
-        super().__init__(**kwargs)
-        self.channel_axis = -1
-        self.h_axis, self.w_axis = [1, 2]
-
-        if channel_format == "channels_first":
-            self.channel_axis = 1
-            self.h_axis, self.w_axis = [2, 3]
-
-        reduction = self.__make_divisible(num_filters * ratio, divisor)
-        self.conv_1 = layers.Conv2D(
-            reduction, kernel_size=1, strides=1, padding="same", use_bias=use_bias
-        )
-
-        self.act_1 = tfa.layers.GELU()
-
-        if activation == "relu":
-            self.act_1 = layers.ReLU()
-
-        self.conv_2 = layers.Conv2D(
-            num_filters, kernel_size=1, strides=1, padding="same", use_bias=use_bias
-        )
-
-        self.act_2 = layers.Activation("sigmoid")
-        self.multiply = layers.Multiply()
-
-    def __make_divisible(self, value, divisor, min_value=None):
-        """Refer: https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet/mobilenet.py"""
-        if min_value is None:
-            min_value = divisor
-        new_value = max(min_value, int(value + divisor / 2) // divisor * divisor)
-        # Make sure that round down does not go down by more than 10%.
-        if new_value < 0.9 * value:
-            new_value += divisor
-        return new_value
-
-    def call(self, inputs):
-        x = tf.reduce_mean(inputs, [self.h_axis, self.w_axis], keepdims=True)
-        x = self.conv_1(x)
-        x = self.act_1(x)
-        x = self.conv_2(x)
-        x = self.act_2(x)
-        x = self.multiply([inputs, x])
-        return x
+    bn_3 = layers.BatchNormalization()(conv_2)
+    drop_1 = layers.Dropout(rate=dropout_rate)(bn_3)
+    return drop_1

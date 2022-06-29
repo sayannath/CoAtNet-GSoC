@@ -2,7 +2,7 @@ import tensorflow as tf
 from configs.model_configs import get_model_config
 from tensorflow import keras
 
-from coatnet.models.blocks import MbConv_Block, conv_3x3
+from coatnet.models.blocks import conv_3x3, mbconv_block
 
 
 def get_training_model(
@@ -28,28 +28,26 @@ def get_training_model(
     conv_2 = conv_3x3(input_layer=conv_1, num_filters=configs.out_channels[0])
     print(conv_2.shape)
 
-    mbconv_1 = MbConv_Block(
+    mbconv_1 = mbconv_block(
+        input_layer=conv_2,
         input_channel=configs.out_channels[0],
         output_channel=configs.out_channels[1],
-        se_ratio=se_ratio,
         strides=2,
-        conv_shortcut=True,
-        expansion=expansion_rate,
+        expansion_rate=expansion_rate,
+        se_ratio=se_ratio,
         dropout_rate=0.1,
-    )(conv_2)
-
+    )
     print(mbconv_1.shape)
 
-    mbconv_2 = MbConv_Block(
+    mbconv_2 = mbconv_block(
+        input_layer=mbconv_1,
         input_channel=configs.out_channels[1],
         output_channel=configs.out_channels[2],
-        se_ratio=se_ratio,
         strides=2,
-        conv_shortcut=True,
-        expansion=expansion_rate,
+        expansion_rate=expansion_rate,
+        se_ratio=se_ratio,
         dropout_rate=0.1,
-    )(mbconv_1)
-
+    )
     print(mbconv_2.shape)
 
     model = keras.models.Model(input_layer, mbconv_2)
