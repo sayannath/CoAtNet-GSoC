@@ -21,7 +21,11 @@ def main(_):
             FLAGS.experiment_configs.image_channels,
         ),
         num_classes=FLAGS.experiment_configs.num_classes,
+        expansion_rate=FLAGS.experiment_configs.expansion_rate,
+        se_ratio=FLAGS.experiment_configs.se_ratio,
     )
+
+    # model.summary()
 
 
 if __name__ == "__main__":
