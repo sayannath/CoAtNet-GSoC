@@ -40,7 +40,7 @@ def mbconv_block(
     """
     Mobile Inverted Block - Stage 2
 
-    Refer: https://github.com/keras-team/keras-applications/blob/master/keras_applications/efficientnet.py
+    Refer: https://github.com/keras-team/keras-applications/blob/06fbeb0f16e1304f239b2296578d1c50b15a983a/keras_applications/efficientnet.py#L119
 
     Args:
         input_layer: input tensor
