@@ -113,3 +113,26 @@ def mbconv_block(
     bn_3 = layers.BatchNormalization()(conv_2)
     drop_1 = layers.Dropout(rate=dropout_rate)(bn_3)
     return drop_1
+
+
+def ffn_block(input_layer, dim, hidden_dim, dropout_rate):
+    """
+    Feed-Forward Block - Stage 4
+
+    Args:
+        input_layer: input tensor
+        dim: number of input channel
+        hidden_dim: number of hidden channel
+        dropout_rate: between 0 and 1, fraction of the input units to drop.
+
+    Returns:
+        output tensor for the block
+    """
+    dense_1 = layers.Dense(hidden_dim)(input_layer)
+    act_1 = tf.nn.gelu(dense_1)
+    dropout_1 = layers.Dropout(rate=dropout_rate)(act_1)
+
+    dense_2 = layers.Dense(dim)(dropout_1)
+    dropout_2 = layers.Dropout(rate=dropout_rate)(dense_2)
+
+    return dropout_2
